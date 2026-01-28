@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>WiFi Tracker – Position en temps réel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f8;
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    header h2 {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    #info {
+      padding: 20px;
+      background: white;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .card {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      border-radius: 10px;
+      padding: 15px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .card strong {
+      display: block;
+      color: #555;
+      font-size: 12px;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card span {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    #map {
+      height: calc(100vh - 200px);
+      width: 100%;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-online {
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+
+    .status-offline {
+      background: #ef4444;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h2>📡 WiFi Tracker – Localisation temps réel</h2>
+</header>
+
+<div id="info">
+  <div class="card">
+    <strong>Statut</strong>
+    <span id="status">
+      <span class="status-indicator status-offline"></span>
+      Déconnecté
+    </span>
+  </div>
+  <div class="card">
+    <strong>Tracker</strong>
+    <span id="device">—</span>
+  </div>
+  <div class="card">
+    <strong>Position</strong>
+    <span id="location">—</span>
+  </div>
+  <div class="card">
+    <strong>Confiance</strong>
+    <span id="confidence">—</span>
+  </div>
+  <div class="card">
+    <strong>Dernière mise à jour</strong>
+    <span id="time">—</span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+  const API_BASE = "http://localhost:8000/api";
+  
+  // Initialisation de la carte (centré sur Paris par défaut)
+  const map = L.map("map").setView([48.8466, 2.3571], 17);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap",
+    maxZoom: 20
+  }).addTo(map);
+
+  // Marker pour la position actuelle
+  let marker = null;
+  
+  // Ligne pour tracer le parcours
+  let pathLine = L.polyline([], {
+    color: '#667eea',
+    weight: 3,
+    opacity: 0.7,
+    smoothFactor: 1
+  }).addTo(map);
+
+  let pathCoordinates = [];
+
+  async function updatePosition() {
+    try {
+      const res = await fetch(`${API_BASE}/latest`);
+      
+      if (!res.ok) {
+        updateStatus(false);
+        return;
+      }
+
+      const data = await res.json();
+      updateStatus(true);
+
+      // Mise à jour des informations
+      document.getElementById("device").textContent = data.device_id;
+      document.getElementById("location").textContent = data.location;
+      document.getElementById("confidence").textContent = data.confidence + " %";
+      document.getElementById("time").textContent = 
+        new Date(data.timestamp).toLocaleTimeString("fr-FR");
+
+      // Mise à jour de la carte
+      const latLng = [data.lat, data.lng];
+
+      if (marker) {
+        marker.setLatLng(latLng);
+      } else {
+        marker = L.marker(latLng, {
+          icon: L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #667eea; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+            iconSize: [20, 20]
+          })
+        }).addTo(map);
+      }
+
+      marker.bindPopup(
+        `<b>${data.device_id}</b><br>
+         📍 ${data.location}<br>
+         🎯 Confiance: ${data.confidence}%<br>
+         🕐 ${new Date(data.timestamp).toLocaleString("fr-FR")}`
+      );
+
+      // Ajouter au parcours
+      pathCoordinates.push(latLng);
+      if (pathCoordinates.length > 100) {
+        pathCoordinates.shift(); // Garder seulement les 100 derniers points
+      }
+      pathLine.setLatLngs(pathCoordinates);
+
+      // Centrer la carte
+      map.setView(latLng, map.getZoom());
+
+    } catch (e) {
+      console.error("Erreur API latest:", e);
+      updateStatus(false);
+    }
+  }
+
+  function updateStatus(isOnline) {
+    const statusEl = document.getElementById("status");
+    if (isOnline) {
+      statusEl.innerHTML = '<span class="status-indicator status-online pulse"></span>En ligne';
+    } else {
+      statusEl.innerHTML = '<span class="status-indicator status-offline"></span>Hors ligne';
+    }
+  }
+
+  // Première mise à jour
+  updatePosition();
+
+  // Rafraîchir toutes les 3 secondes
+  setInterval(updatePosition, 3000);
+</script>
+
+</body>
+</html>
