@@ -158,9 +158,10 @@
 
   let pathCoordinates = [];
 
+  // Partie HTTP
   async function updatePosition() {
     try {
-      const res = await fetch(`${API_BASE}/latest`);
+      const res = await fetch(`${API_BASE}/latest`); // Requête HTTP GET
       
       if (!res.ok) {
         updateStatus(false);
@@ -194,9 +195,9 @@
 
       marker.bindPopup(
         `<b>${data.device_id}</b><br>
-         📍 ${data.location}<br>
-         🎯 Confiance: ${data.confidence}%<br>
-         🕐 ${new Date(data.timestamp).toLocaleString("fr-FR")}`
+            ${data.location}<br>
+            Confiance: ${data.confidence}%<br>
+            ${new Date(data.timestamp).toLocaleString("fr-FR")}`
       );
 
       // Ajouter au parcours
@@ -227,8 +228,8 @@
   // Première mise à jour
   updatePosition();
 
-  // Rafraîchir toutes les 3 secondes
-  setInterval(updatePosition, 3000);
+  // Rafraîchir toutes les 5 secondes
+  setInterval(updatePosition, 5000);
 </script>
 
 </body>

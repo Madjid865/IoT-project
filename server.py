@@ -289,19 +289,21 @@ def estimate_position_simple(networks: List[WiFiNetwork]) -> tuple: # networks �
 # ================= MQTT =================
 def on_connect(client, userdata, flags, rc):
     print("OK: MQTT connecté")
-    client.subscribe(MQTT_TOPIC)
+    client.subscribe(MQTT_TOPIC) # S'abonne au topic
 
 def on_message(client, userdata, msg):
     try:
-        payload = json.loads(msg.payload.decode())
-        scan = ScanData(**payload)
+        payload = json.loads(msg.payload.decode()) # Décode le JSON
+        scan = ScanData(**payload) # Valide les données
         
         print(f"\n{'='*60}")
         print(f"Nouveau scan de {scan.device_id}")
         print(f"{'='*60}")
         
+        # Estime la position
         location, confidence, coords = estimate_position_simple(scan.networks)
         
+        # Stocke dans l'historique
         scan_history.append({
             "device_id": scan.device_id,
             "timestamp": datetime.now().isoformat(),
