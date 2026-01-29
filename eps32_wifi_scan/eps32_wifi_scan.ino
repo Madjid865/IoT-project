@@ -3,8 +3,8 @@
 #include <ArduinoJson.h>
 
 // ========== CONFIGURATION WiFi ==========
-const char* ssid = "iPhone de Madjid";        // Remplace par ton WiFi
-const char* password = "rilessundayz"; // Remplace par ton mot de passe
+const char* ssid = "wifi    // Remplace par ton WiFi
+const char* password = "---"" // Remplace par ton mot de passe
 
 // ========== CONFIGURATION MQTT ==========
 const char* mqtt_server = "broker.hivemq.com";
